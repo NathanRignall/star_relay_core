@@ -14,4 +14,3 @@ gnatcoll = "^21.0.0"
 
 [environment]
 DEVICE_IDENTIFIER.set = "100"
-CLOUD_MULTICAST_ADDRESS.set = "239.255.128.128"

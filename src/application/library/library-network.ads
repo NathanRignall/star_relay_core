@@ -158,7 +158,10 @@ package Library.Network is
 
    type Network_Access_Type is access Network_Type'Class;
 
-   procedure Initialize (This : in out Network_Type);
+   procedure Initialize
+     (This                    : in out Network_Type;
+      Radio_Multicast_Address :        Drivers.Ethernet.Address_V4_Type;
+      Cloud_Server_Address    :        Drivers.Ethernet.Address_V4_Type);
 
    procedure Schedule
      (This : in out Network_Type; Cycle : Types.Schedule.Cycle_Type);
@@ -181,6 +184,8 @@ private
       Cloud             : Drivers.Ethernet.Ethernet_Access_Type)
    is
    tagged record
+      Radio_Multicast_Address : Drivers.Ethernet.Address_V4_Type;
+      Cloud_Server_Address    : Drivers.Ethernet.Address_V4_Type;
 
       Device_Address_Transport_Array   : Device_Address_Transport_Array_Type :=
         Device_Address_Transport_Array_Default;
@@ -191,7 +196,6 @@ private
 
       Packet_Collection : Packet_Collection_Array_Type :=
         Packet_Collection_Array_Default;
-
    end record;
 
 end Library.Network;

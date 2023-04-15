@@ -2,7 +2,7 @@ with Types.Physics;
 with Types.State;
 package Application.State is
 
-  use type Types.Physics.Velocity_Type;
+   use type Types.Physics.Velocity_Type;
 
    Core_State : Types.State.Core_State_Type :=
      Types.State.Core_State_Type'

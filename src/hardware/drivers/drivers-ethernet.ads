@@ -27,15 +27,15 @@ package Drivers.Ethernet is
    Address_Port_Default : constant Address_Port_Type :=
      (Address => Address_V4_Default, Port => Port_Default);
 
-   type Ethernet_Type
-     (Address           : Address_V4_Access_Type; Port : Port_Type;
-      Multicast_Address : Address_V4_Access_Type)
-   is
+   type Ethernet_Type (Address : Address_V4_Access_Type; Port : Port_Type) is
      tagged private;
 
    type Ethernet_Access_Type is access Ethernet_Type'Class;
 
    procedure Initialize (This : in out Ethernet_Type);
+
+   procedure Join_Multicast_Group
+     (This : in out Ethernet_Type; Address : Address_V4_Type);
 
    procedure Send
      (This :     Ethernet_Type; Address : Address_V4_Type; Port : Port_Type;
@@ -51,15 +51,10 @@ package Drivers.Ethernet is
 
 private
 
-   type Ethernet_Type
-     (Address           : Address_V4_Access_Type; Port : Port_Type;
-      Multicast_Address : Address_V4_Access_Type)
-   is
+   type Ethernet_Type (Address : Address_V4_Access_Type; Port : Port_Type) is
    tagged limited record
-
       Socket   : GNAT.Sockets.Socket_Type;
       Selector : GNAT.Sockets.Selector_Type;
-
    end record;
 
 end Drivers.Ethernet;

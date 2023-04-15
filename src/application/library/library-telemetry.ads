@@ -12,9 +12,7 @@ package Library.Telemetry is
    Variant_Default : constant Variant_Type := Debug;
 
    type Debug_Type is record
-
       null;
-
    end record;
 
    type Location_Type is record
@@ -58,9 +56,7 @@ private
 
    type Telemetry_Type (Network : Library.Network.Network_Access_Type) is
    tagged record
-
       null;
-
    end record;
 
 end Library.Telemetry;

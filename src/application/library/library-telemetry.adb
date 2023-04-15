@@ -30,8 +30,8 @@ package body Library.Telemetry is
          when Types.Schedule.S_20ms =>
             This.Process_Telemetry;
 
-         --  when Types.Schedule.S_5000ms =>
-         --     This.Send_Location;
+         when Types.Schedule.S_200ms =>
+            This.Send_Location;
 
          when others =>
             null;
@@ -41,51 +41,65 @@ package body Library.Telemetry is
    end Schedule;
 
    procedure Process_Telemetry (This : Telemetry_Type) is
-      Packet : Library.Network.Packet_Type;
 
       use type Library.Network.Packet_Type;
 
+      Packet  : Library.Network.Packet_Type;
       Payload : Library.Network.Payload_Array_Type;
+
       Variant : Variant_Type;
       for Variant'Address use Payload'Address;
 
    begin
 
+      -- loop through all the packets (up to 100)
       for Index in 1 .. 100 loop
 
+         -- get the next packet to process
          Packet := This.Network.Get_Packet (Library.Network.Telemetry);
 
+         -- overlay the packet payload on the payload array
          Payload := Packet.Payload;
 
          -- check if packet is not default
          if Packet /= Library.Network.Packet_Default then
 
             declare
-               Telemetry_Packet : Telemetry_Packet_Type (Variant);
 
+               Telemetry_Packet : Telemetry_Packet_Type (Variant);
                for Telemetry_Packet'Address use Payload'Address;
+
             begin
 
+               -- overlay the packet payload on the payload array (again)
                Payload := Packet.Payload;
 
-               -- check the packet variant
-               case Variant is
+               -- check if variant is valid
+               if Variant'Valid then
 
-                  when Location =>
-                  
-                     Process_Location_Telemetry
-                       (This, Telemetry_Packet, Packet.Source);
+                  -- check the packet variant
+                  case Variant is
 
-                  when others =>
-                     Ada.Text_IO.Put_Line ("Telemetry Unknown");
+                     when Location =>
+                        Process_Location_Telemetry
+                          (This, Telemetry_Packet, Packet.Source);
 
-               end case;
+                     when others =>
+                        Ada.Text_IO.Put_Line ("Telemetry Unknown");
+
+                  end case;
+
+               else
+
+                  Ada.Text_IO.Put_Line ("Telemetry Invalid");
+
+               end if;
 
             end;
 
          else
 
-            -- no more packets to process
+            -- no more packets to process so exit loop
             return;
 
          end if;
@@ -98,37 +112,39 @@ package body Library.Telemetry is
      (This   : Telemetry_Type; Telemetry_Packet : Telemetry_Packet_Type;
       Source : Library.Network.Device_Identifier_Type)
    is
+
       use type Types.State.Aircraft_Identifier_Type;
       use type Types.State.Aircraft_Index_Type;
 
       No_Space : exception;
+
    begin
 
       -- look if the aircraft is in the list of aircraft
       for Aircraft_Index in Types.State.Aircraft_Index_Type loop
 
+         -- check if the aircraft is in the list of aircraft
          if Application.State.Aircraft_State (Aircraft_Index).Active = True
            and then
              Application.State.Aircraft_State (Aircraft_Index).Identifier =
              Types.State.Aircraft_Identifier_Type (Source)
          then
 
-            Ada.Text_IO.Put_Line ("Update Aircraft - ID" & Source'Image);
-
+            -- update the aircraft state
             Application.State.Aircraft_State (Aircraft_Index).Position :=
               Telemetry_Packet.Location.Position;
-
             Application.State.Aircraft_State (Aircraft_Index)
-              .Velocity_Vector :=
+              .Velocity_Vector                                         :=
               Telemetry_Packet.Location.Velocity_Vector;
-
             Application.State.Aircraft_State (Aircraft_Index)
-              .Rotation_Vector :=
+              .Rotation_Vector                                         :=
               Telemetry_Packet.Location.Rotation_Vector;
 
+            -- set the time of the last update
             Application.State.Aircraft_State (Aircraft_Index).Time :=
               Ada.Real_Time.Clock;
 
+            -- exit the loop
             return;
 
          end if;
@@ -138,29 +154,30 @@ package body Library.Telemetry is
       -- if the aircraft is not in the list of aircraft, add it
       for Aircraft_Index in Types.State.Aircraft_Index_Type loop
 
+         -- check if the solt does not have an an active aircraft
          if Application.State.Aircraft_State (Aircraft_Index).Active = False
          then
 
-            Ada.Text_IO.Put_Line ("Add Aircraft - ID" & Source'Image);
-
+            -- place the aircraft in the list of aircraft
             Application.State.Aircraft_State (Aircraft_Index).Active := True;
             Application.State.Aircraft_State (Aircraft_Index).Identifier :=
               Types.State.Aircraft_Identifier_Type (Source);
 
+            -- set the aircraft state
             Application.State.Aircraft_State (Aircraft_Index).Position :=
               Telemetry_Packet.Location.Position;
-
             Application.State.Aircraft_State (Aircraft_Index)
-              .Velocity_Vector :=
+              .Velocity_Vector                                         :=
               Telemetry_Packet.Location.Velocity_Vector;
-
             Application.State.Aircraft_State (Aircraft_Index)
-              .Rotation_Vector :=
+              .Rotation_Vector                                         :=
               Telemetry_Packet.Location.Rotation_Vector;
 
+            -- set the time of the last update
             Application.State.Aircraft_State (Aircraft_Index).Time :=
               Ada.Real_Time.Clock;
 
+            -- exit the loop
             return;
 
          elsif Aircraft_Index = Types.State.Aircraft_Index_Type'Last then
@@ -186,24 +203,21 @@ package body Library.Telemetry is
 
    begin
 
+      -- form the telemetry packet
       Telemetry_Packet :=
         Telemetry_Packet_Type'
           (Variant  => Location,
            Location =>
              Location_Type'
-               (Position        => Types.Physics.Position_Default,
-                Velocity_Vector => Types.Physics.Velocity_Vector_Default,
-                Rotation_Vector => Types.Physics.Rotation_Vector_Default));
+               (Position        =>
+                  Application.State.Core_State.Physical_State.Position,
+                Velocity_Vector =>
+                  Application.State.Core_State.Physical_State.Velocity_Vector,
+                Rotation_Vector =>
+                  Application.State.Core_State.Physical_State
+                    .Rotation_Vector));
 
-      Telemetry_Packet.Location.Position :=
-        Application.State.Core_State.Physical_State.Position;
-
-      Telemetry_Packet.Location.Velocity_Vector :=
-        Application.State.Core_State.Physical_State.Velocity_Vector;
-
-      Telemetry_Packet.Location.Rotation_Vector :=
-        Application.State.Core_State.Physical_State.Rotation_Vector;
-
+      -- form the packet using the telemetry packet
       New_Packet :=
         Library.Network.Packet_Type'
           (Packet_Variant => Library.Network.Telemetry, Packet_Number => 45,

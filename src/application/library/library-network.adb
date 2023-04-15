@@ -33,12 +33,19 @@ package body Library.Network is
      (This              : in out Network_Type; Transport : Transport_Type;
       Device_Identifier :        Device_Identifier_Type) return Boolean;
 
-   procedure Initialize (This : in out Network_Type) is
+   procedure Initialize
+     (This                    : in out Network_Type;
+      Radio_Multicast_Address :        Drivers.Ethernet.Address_V4_Type;
+      Cloud_Server_Address    :        Drivers.Ethernet.Address_V4_Type)
+   is
    begin
 
       Ada.Text_IO.Put_Line ("Network_Type Initialize");
-
       Ada.Text_IO.Put_Line ("Device Id" & This.Device_Identifier'Image);
+
+      -- set the variables
+      This.Radio_Multicast_Address := Radio_Multicast_Address;
+      This.Cloud_Server_Address    := Cloud_Server_Address;
 
    end Initialize;
 
@@ -55,8 +62,8 @@ package body Library.Network is
          when Types.Schedule.S_500ms =>
             This.Cleanup_Connected_Device_Array;
 
-         --  when Types.Schedule.S_2000ms =>
-            --  This.Send_Packet_Alive;
+         when Types.Schedule.S_2000ms =>
+            This.Send_Packet_Alive;
 
          when others =>
             null;
@@ -66,8 +73,10 @@ package body Library.Network is
    end Schedule;
 
    procedure Recieve_Process_Packets (This : in out Network_Type) is
+
       Packet              : Packet_Type;
       Source_Address_Port : Drivers.Ethernet.Address_Port_Type;
+
    begin
       -- loop for a maximum of 100 times for radio
       for Index in 1 .. 100 loop
@@ -83,6 +92,7 @@ package body Library.Network is
 
          else
 
+            -- exit the loop as there is no new data
             exit;
 
          end if;
@@ -103,6 +113,7 @@ package body Library.Network is
 
          else
 
+            -- exit the loop as there is no new data
             exit;
 
          end if;
@@ -115,13 +126,16 @@ package body Library.Network is
       Packet              :    out Packet_Type;
       Source_Address_Port :    out Drivers.Ethernet.Address_Port_Type)
    is
+
       Data : Ada.Streams.Stream_Element_Array (1 .. 1_031) := (others => 0);
       Last : Ada.Streams.Stream_Element_Offset;
 
       New_Packet : Packet_Type;
       for New_Packet'Address use Data'Address;
+
    begin
 
+      -- get the packet from transport
       case Transport is
 
          when Radio =>
@@ -136,6 +150,7 @@ package body Library.Network is
 
       end case;
 
+      -- overlay the data on the packet
       Packet := New_Packet;
 
    end Receive_Packet;
@@ -152,16 +167,10 @@ package body Library.Network is
          case Packet.Packet_Variant is
 
             when Alive =>
-
                Process_Alive_Packet
                  (This, Transport, Packet, Source_Address_Port);
 
             when Telemetry =>
-               Ada.Text_IO.Put_Line
-                 ("Telemetry" & Packet.Source'Image & " Packet:" &
-                  Packet.Packet_Number'Image & " Transport: " &
-                  Transport'Image);
-
                This.Packet_Collection (Telemetry).Packet_Index     :=
                  Packet_Index_Type'Succ
                    (This.Packet_Collection (Telemetry).Packet_Index);
@@ -216,9 +225,11 @@ package body Library.Network is
       Packet              :        Packet_Type;
       Source_Address_Port :        Drivers.Ethernet.Address_Port_Type)
    is
-      No_Space : exception;
 
       use type Drivers.Ethernet.Address_V4_Type;
+
+      No_Space : exception;
+
    begin
 
       -- check if the device is already connected
@@ -227,11 +238,13 @@ package body Library.Network is
          -- add the device to the connected device array
          for Device_Index in Connected_Device_Index_Type loop
 
+            -- check if space is available
             if not This.Connected_Device_Transport_Array (Transport)
                 (Device_Index)
                 .Active
             then
 
+               -- add the device to the connected device array
                This.Connected_Device_Transport_Array (Transport)
                  (Device_Index) :=
                  Connected_Device_Type'
@@ -241,12 +254,14 @@ package body Library.Network is
                -- add the device to the device address array
                for Device_Address_Index in Device_Address_Index_Type loop
 
+                  -- check if space is available
                   if This.Device_Address_Transport_Array (Transport)
                       (Device_Address_Index)
                       .Identifier =
                     0
                   then
 
+                     -- write to the console the device that has connected
                      Ada.Text_IO.Put_Line
                        ("Add IP:" & Source_Address_Port.Address (1)'Image &
                         "." & Source_Address_Port.Address (2)'Image & "." &
@@ -255,6 +270,7 @@ package body Library.Network is
                         Packet.Source'Image & " Transport: " &
                         Transport'Image);
 
+                     -- add the device to the device address array
                      This.Device_Address_Transport_Array (Transport)
                        (Device_Address_Index) :=
                        Device_Address_Type'
@@ -287,11 +303,13 @@ package body Library.Network is
          -- update the time
          for Device_Index in Connected_Device_Index_Type loop
 
+            -- check if currently on the device
             if This.Connected_Device_Transport_Array (Transport) (Device_Index)
                 .Identifier =
               Packet.Source
             then
 
+               -- update the time
                This.Connected_Device_Transport_Array (Transport) (Device_Index)
                  .Time :=
                  Ada.Real_Time.Clock;
@@ -299,6 +317,7 @@ package body Library.Network is
                -- check the ip address
                for Device_Address_Index in Device_Address_Index_Type loop
 
+                  -- check if currently on the device
                   if This.Device_Address_Transport_Array (Transport)
                       (Device_Address_Index)
                       .Identifier =
@@ -312,6 +331,7 @@ package body Library.Network is
                        Source_Address_Port.Address
                      then
 
+                        -- write to the console the device that has connected
                         Ada.Text_IO.Put_Line
                           ("Update IP:" &
                            Source_Address_Port.Address (1)'Image & "." &
@@ -329,6 +349,7 @@ package body Library.Network is
 
                      end if;
 
+                     -- exit the loop as the device has been found and updated
                      return;
 
                   elsif Device_Address_Index = Device_Address_Index_Type'Last
@@ -358,13 +379,17 @@ package body Library.Network is
      (This : in out Network_Type; Variant : Packet_Variant_Type)
       return Packet_Type
    is
+
       New_Packet : Packet_Type := Packet_Default;
+
    begin
 
+      -- get the packet from the packet array
       New_Packet :=
         This.Packet_Collection (Variant).Packet_Array
           (This.Packet_Collection (Variant).Packet_Index);
 
+      -- clear the packet from the packet array
       This.Packet_Collection (Variant).Packet_Array
         (This.Packet_Collection (Variant).Packet_Index) :=
         Packet_Default;
@@ -374,11 +399,14 @@ package body Library.Network is
    end Get_Packet;
 
    procedure Send_Packet (This : in out Network_Type; Packet : Packet_Type) is
-      Destination_Address : Drivers.Ethernet.Address_V4_Type := (127, 0, 0, 1);
 
+      Destination_Address : Drivers.Ethernet.Address_V4_Type := (127, 0, 0, 1);
       Last     : Ada.Streams.Stream_Element_Offset;
+
+      -- this needs to change set to address of procedure parameter
       New_Data : Ada.Streams.Stream_Element_Array (1 .. 1_024);
       for New_Data'Address use Packet'Address;
+
    begin
 
       -- check if a broadcast
@@ -407,12 +435,10 @@ package body Library.Network is
 
          else
 
-            --  Ada.Text_IO.Put_Line ("Unknown Target");
-
             -- send the packet to cloud server
             This.Cloud.Send
-              (Address => Drivers.Ethernet.Address_V4_Type'(172,20,0,7),
-               Port    => This.Cloud.Port, Data => New_Data, Last => Last);
+              (Address => This.Cloud_Server_Address, Port => This.Cloud.Port,
+               Data    => New_Data, Last => Last);
 
          end if;
 
@@ -420,39 +446,46 @@ package body Library.Network is
 
          -- send the packet on radio multicast
          This.Radio.Send
-           (Address => This.Radio.Multicast_Address.all,
-            Port    => This.Radio.Port, Data => New_Data, Last => Last);
+           (Address => This.Radio_Multicast_Address, Port => This.Radio.Port,
+            Data    => New_Data, Last => Last);
 
          -- send the packet to cloud server
          This.Cloud.Send
-           (Address => Drivers.Ethernet.Address_V4_Type'(172,20,0,7),
-            Port    => This.Cloud.Port, Data => New_Data, Last => Last);
+           (Address => This.Cloud_Server_Address, Port => This.Cloud.Port,
+            Data    => New_Data, Last => Last);
 
       end if;
 
    end Send_Packet;
 
    procedure Send_Packet_Alive (This : in out Network_Type) is
+
       Packet_Alive : Packet_Type;
+
    begin
 
+      -- create the alive packet
       Packet_Alive :=
         Packet_Type'
           (Packet_Variant => Alive, Packet_Number => 0,
            Source => This.Device_Identifier, Target => 0, Payload_Length => 0,
            Payload        => Payload_Array_Default, Broadcast => True);
 
+      -- send the packet
       Send_Packet (This, Packet_Alive);
 
    end Send_Packet_Alive;
 
    procedure Cleanup_Connected_Device_Array (This : in out Network_Type) is
-      Current_Time : Ada.Real_Time.Time;
-      Timeout_Time : Ada.Real_Time.Time;
 
       use type Ada.Real_Time.Time;
+
+      Current_Time : Ada.Real_Time.Time;
+      Timeout_Time : Ada.Real_Time.Time;
+      
    begin
 
+      -- loop through the transport array
       for Transport in Transport_Type loop
 
          -- loop through the connected device array
@@ -476,9 +509,10 @@ package body Library.Network is
                -- check if the device has timed out
                if Current_Time > Timeout_Time then
 
-                  -- remove the device from the device address array
+                  -- loop through the device address array to find the device
                   for Device_Address_Index in Device_Address_Index_Type loop
 
+                     -- check if the device is found
                      if This.Device_Address_Transport_Array (Transport)
                          (Device_Address_Index)
                          .Identifier =
@@ -487,6 +521,7 @@ package body Library.Network is
                          .Identifier
                      then
 
+                        -- write to the console that the device has timed out
                         Ada.Text_IO.Put_Line
                           ("Remove IP:" &
                            This.Device_Address_Transport_Array (Transport)
@@ -528,7 +563,7 @@ package body Library.Network is
 
                   end loop;
 
-                  -- remove the device from the connected device array
+                  -- remove the device from the connected device array (after address has been removed)
                   This.Connected_Device_Transport_Array (Transport)
                     (Device_Index) :=
                     Connected_Device_Default;
@@ -550,19 +585,23 @@ package body Library.Network is
    is
    begin
 
+      -- loop through the device address array
       for Device_Address_Index in Device_Address_Index_Type loop
 
+         -- check if the device identifier matches
          if This.Device_Address_Transport_Array (Transport)
              (Device_Address_Index)
              .Identifier =
            Device_Identifier
          then
 
+            -- set the device address
             Device_Address :=
               This.Device_Address_Transport_Array (Transport)
                 (Device_Address_Index)
                 .Address;
 
+            -- exit the loop as the device address has been found
             return;
 
          end if;
@@ -577,8 +616,10 @@ package body Library.Network is
    is
    begin
 
+      -- loop through the connected device array
       for Device_Index in Connected_Device_Index_Type loop
 
+         -- check if the device is active and the device identifier matches
          if This.Connected_Device_Transport_Array (Transport) (Device_Index)
              .Active
            and then
@@ -587,12 +628,14 @@ package body Library.Network is
              Device_Identifier
          then
 
+            -- device is connected
             return True;
 
          end if;
 
       end loop;
 
+      -- device is not connected as not found
       return False;
 
    end Is_Connected;

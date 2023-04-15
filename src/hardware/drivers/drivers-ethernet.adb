@@ -3,8 +3,9 @@ with Ada.Text_IO;
 package body Drivers.Ethernet is
 
    procedure Initialize (This : in out Ethernet_Type) is
-      Server_Address    : GNAT.Sockets.Sock_Addr_Type;
-      Multicast_Address : GNAT.Sockets.Inet_Addr_Type;
+
+      Server_Address : GNAT.Sockets.Sock_Addr_Type;
+
    begin
 
       -- set the server address
@@ -27,25 +28,7 @@ package body Drivers.Ethernet is
                          (This.Address.all (4)))),
            Port   => GNAT.Sockets.Port_Type (This.Port));
 
-      -- set the multicast address
-      Multicast_Address :=
-        GNAT.Sockets.Inet_Addr_Type'
-          (Family => GNAT.Sockets.Family_Inet,
-           Sin_V4 =>
-             GNAT.Sockets.Inet_Addr_V4_Type'
-               (1 =>
-                  GNAT.Sockets.Inet_Addr_Comp_Type
-                    (This.Multicast_Address (1)),
-                2 =>
-                  GNAT.Sockets.Inet_Addr_Comp_Type
-                    (This.Multicast_Address (2)),
-                3 =>
-                  GNAT.Sockets.Inet_Addr_Comp_Type
-                    (This.Multicast_Address (3)),
-                4 =>
-                  GNAT.Sockets.Inet_Addr_Comp_Type
-                    (This.Multicast_Address (4))));
-
+      -- print the server address
       Ada.Text_IO.Put_Line
         ("IP" & This.Address (1)'Image & "." & This.Address (2)'Image & "." &
          This.Address (3)'Image & "." & This.Address (4)'Image & ":" &
@@ -55,21 +38,10 @@ package body Drivers.Ethernet is
       GNAT.Sockets.Create_Socket
         (This.Socket, GNAT.Sockets.Family_Inet, GNAT.Sockets.Socket_Datagram);
 
-      --  -- enable broadcast
-      --  GNAT.Sockets.Set_Socket_Option
-      --    (This.Socket, GNAT.Sockets.IP_Protocol_For_IP_Level,
-      --     (GNAT.Sockets.Broadcast, True));
-
-      --  -- join the multicast group
-      --  GNAT.Sockets.Set_Socket_Option
-      --    (This.Socket, GNAT.Sockets.IP_Protocol_For_IP_Level,
-      --    (GNAT.Sockets.Add_Membership, Multicast_Address,
-      --      Server_Address.Addr));
-
-      --  -- set multicast loopback
-      --  GNAT.Sockets.Set_Socket_Option
-      --    (This.Socket, GNAT.Sockets.IP_Protocol_For_IP_Level,
-      --     (GNAT.Sockets.Multicast_Loop, False));
+      -- set multicast loopback
+      GNAT.Sockets.Set_Socket_Option
+        (This.Socket, GNAT.Sockets.IP_Protocol_For_IP_Level,
+         (GNAT.Sockets.Multicast_Loop, False));
 
       -- enable reuse address
       GNAT.Sockets.Set_Socket_Option
@@ -84,12 +56,41 @@ package body Drivers.Ethernet is
 
    end Initialize;
 
+   procedure Join_Multicast_Group
+     (This : in out Ethernet_Type; Address : Address_V4_Type)
+   is
+
+      Multicast_Address : GNAT.Sockets.Inet_Addr_Type;
+
+   begin
+
+      -- set the multicast address
+      Multicast_Address :=
+        GNAT.Sockets.Inet_Addr_Type'
+          (Family => GNAT.Sockets.Family_Inet,
+           Sin_V4 =>
+             GNAT.Sockets.Inet_Addr_V4_Type'
+               (1 => GNAT.Sockets.Inet_Addr_Comp_Type (Address (1)),
+                2 => GNAT.Sockets.Inet_Addr_Comp_Type (Address (2)),
+                3 => GNAT.Sockets.Inet_Addr_Comp_Type (Address (3)),
+                4 => GNAT.Sockets.Inet_Addr_Comp_Type (Address (4))));
+
+      -- join the multicast group
+      GNAT.Sockets.Set_Socket_Option
+        (This.Socket, GNAT.Sockets.IP_Protocol_For_IP_Level,
+        (GNAT.Sockets.Add_Membership, Multicast_Address,
+          GNAT.Sockets.Any_Inet_Addr));
+
+   end Join_Multicast_Group;
+
    procedure Send
      (This :     Ethernet_Type; Address : Address_V4_Type; Port : Port_Type;
       Data :     Ada.Streams.Stream_Element_Array;
       Last : out Ada.Streams.Stream_Element_Offset)
    is
+
       Destination_Address : GNAT.Sockets.Sock_Addr_Type;
+
    begin
 
       -- set the destination address
@@ -113,11 +114,13 @@ package body Drivers.Ethernet is
    end Send;
 
    procedure Receive
-     (This :     Ethernet_Type; Address : out Address_V4_Type; Port : out Port_Type;
-      Data : out Ada.Streams.Stream_Element_Array;
+     (This :     Ethernet_Type; Address : out Address_V4_Type;
+      Port : out Port_Type; Data : out Ada.Streams.Stream_Element_Array;
       Last : out Ada.Streams.Stream_Element_Offset)
    is
+
       Source_Address : GNAT.Sockets.Sock_Addr_Type;
+
    begin
 
       -- get the data
@@ -136,13 +139,15 @@ package body Drivers.Ethernet is
    end Receive;
 
    function Is_New_Data (This : Ethernet_Type) return Boolean is
+
+      use type GNAT.Sockets.Selector_Status;
+
       R_Socket_Set : GNAT.Sockets.Socket_Set_Type;
       W_Socket_Set : GNAT.Sockets.Socket_Set_Type;
 
       Status  : GNAT.Sockets.Selector_Status;
       Timeout : constant Duration := 0.0;
 
-      use type GNAT.Sockets.Selector_Status;
    begin
 
       GNAT.Sockets.Set (R_Socket_Set, This.Socket);
