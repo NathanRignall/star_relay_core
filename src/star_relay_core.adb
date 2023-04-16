@@ -101,9 +101,9 @@ procedure Star_Relay_Core is
          -- update next time
          Next := Next + Cycle_Delay;
 
-         if Next < Ada.Real_Time.Clock then
-            Ada.Text_IO.Put_Line ("Schedule overrun in cycle counter " & Cycle'Image);
-         end if;
+         --  if Next < Ada.Real_Time.Clock then
+         --     Ada.Text_IO.Put_Line ("Schedule overrun in cycle counter " & Cycle'Image);
+         --  end if;
 
       end loop;
 
@@ -116,13 +116,7 @@ procedure Star_Relay_Core is
    end Schedule;
 
 begin
-   Ada.Text_IO.Put_Line ("AWS " & AWS.Version);
-   Ada.Text_IO.Put_Line ("Kill me when you want me to stop...");
-   Ada.Text_IO.Put_Line ("I will stop in 10 minutes anyway !");
-
-   Ada.Text_IO.Put_Line
-     ("For the WebSocket demo, open in browser websocket-messages-test.Html");
-   Ada.Text_IO.Put_Line ("   firefox websocket-messages-test.html");
+   Ada.Text_IO.Put_Line ("Ada Web Server " & AWS.Version);
 
    AWS.Config.Set.Reuse_Address (Config, True);
    AWS.Config.Set.Server_Host (Config, "0.0.0.0");

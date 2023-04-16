@@ -20,13 +20,13 @@ package Types.Physics is
 
    type Axis_Type is (X, Y, Z);
 
-   type Displacement_Type is delta 0.001 range -1_000.0 .. 1_000.0;
+   type Displacement_Type is delta 0.001 range -100_000.0 .. 100_000.0;
    Displacement_Default : constant Displacement_Type := 0.0;
    type Displacement_Vector_Type is array (Axis_Type) of Displacement_Type;
    Displacement_Vector_Default : constant Displacement_Vector_Type :=
      (others => Displacement_Default);
 
-   type Velocity_Type is delta 0.001 range -1_000.0 .. 1_000.0;
+   type Velocity_Type is delta 0.001 range -10_000.0 .. 10_000.0;
    Velocity_Default : constant Velocity_Type := 0.0;
    type Velocity_Vector_Type is array (Axis_Type) of Velocity_Type;
    Velocity_Vector_Default : constant Velocity_Vector_Type :=

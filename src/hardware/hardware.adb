@@ -24,9 +24,6 @@ package body Hardware is
       Radio.Initialize;
       Cloud.Initialize;
 
-      --  -- join the multicast group for the radio
-      --  Radio.Join_Multicast_Group (Radio_Multicast_Address.all);
-
    end Initialize;
 
    procedure Schedule (Cycle : Types.Schedule.Cycle_Type) is
