@@ -162,71 +162,78 @@ package body Library.Network is
    is
    begin
 
+      -- check if the packet is valid
       if Packet.Packet_Variant'Valid then
 
-         case Packet.Packet_Variant is
+         -- don't process packets from ourselves
+         if Packet.Source /= This.Device_Identifier then
 
-            when Alive =>
-               Process_Alive_Packet
-                 (This, Transport, Packet, Source_Address_Port);
+            -- process the packet
+            case Packet.Packet_Variant is
 
-            when Telemetry =>
+               when Alive =>
+                  Process_Alive_Packet
+                  (This, Transport, Packet, Source_Address_Port);
 
-               -- double check we are not writing on top of an existing packet
-               if This.Packet_Collection (Telemetry).Packet_Array
-                   (This.Packet_Collection (Telemetry).Packet_Index) /=
-                 Packet_Default
-               then
+               when Telemetry =>
+
+                  -- double check we are not writing on top of an existing packet
+                  if This.Packet_Collection (Telemetry).Packet_Array
+                     (This.Packet_Collection (Telemetry).Packet_Index) /=
+                  Packet_Default
+                  then
+                     Ada.Text_IO.Put_Line
+                     ("Error: Overwriting Packet - Source:" &
+                        This.Packet_Collection (Telemetry).Packet_Array
+                        (This.Packet_Collection (Telemetry).Packet_Index)
+                        .Source'
+                        Image &
+                        " Index:" &
+                        This.Packet_Collection (Telemetry).Packet_Index'Image);
+                  end if;
+
+                  This.Packet_Collection (Telemetry).Packet_Array
+                  (This.Packet_Collection (Telemetry).Packet_Index) :=
+                  Packet;
+                  This.Packet_Collection (Telemetry).Packet_Index     :=
+                  Packet_Index_Type'Succ
+                     (This.Packet_Collection (Telemetry).Packet_Index);
+
+               when Command =>
                   Ada.Text_IO.Put_Line
-                    ("Error: Overwriting Packet - Source:" &
-                     This.Packet_Collection (Telemetry).Packet_Array
-                       (This.Packet_Collection (Telemetry).Packet_Index)
-                       .Source'
-                       Image &
-                     " Index:" &
-                     This.Packet_Collection (Telemetry).Packet_Index'Image);
-               end if;
+                  ("Request:" & Packet.Source'Image & " Packet:" &
+                     Packet.Packet_Number'Image & " Transport: " &
+                     Transport'Image);
 
-               This.Packet_Collection (Telemetry).Packet_Array
-                 (This.Packet_Collection (Telemetry).Packet_Index) :=
-                 Packet;
-               This.Packet_Collection (Telemetry).Packet_Index     :=
-                 Packet_Index_Type'Succ
-                   (This.Packet_Collection (Telemetry).Packet_Index);
+                  This.Packet_Collection (Command).Packet_Array
+                  (This.Packet_Collection (Command).Packet_Index) :=
+                  Packet;
+                  This.Packet_Collection (Command).Packet_Index     :=
+                  Packet_Index_Type'Succ
+                     (This.Packet_Collection (Command).Packet_Index);
 
-            when Command =>
-               Ada.Text_IO.Put_Line
-                 ("Request:" & Packet.Source'Image & " Packet:" &
-                  Packet.Packet_Number'Image & " Transport: " &
-                  Transport'Image);
+               when Response =>
+                  Ada.Text_IO.Put_Line
+                  ("Response" & Packet.Source'Image & " Packet:" &
+                     Packet.Packet_Number'Image & " Transport: " &
+                     Transport'Image);
 
-               This.Packet_Collection (Command).Packet_Array
-                 (This.Packet_Collection (Command).Packet_Index) :=
-                 Packet;
-               This.Packet_Collection (Command).Packet_Index     :=
-                 Packet_Index_Type'Succ
-                   (This.Packet_Collection (Command).Packet_Index);
+                  This.Packet_Collection (Response).Packet_Array
+                  (This.Packet_Collection (Response).Packet_Index) :=
+                  Packet;
+                  This.Packet_Collection (Response).Packet_Index     :=
+                  Packet_Index_Type'Succ
+                     (This.Packet_Collection (Response).Packet_Index);
 
-            when Response =>
-               Ada.Text_IO.Put_Line
-                 ("Response" & Packet.Source'Image & " Packet:" &
-                  Packet.Packet_Number'Image & " Transport: " &
-                  Transport'Image);
+               when Unknown =>
+                  Ada.Text_IO.Put_Line
+                  ("Unknown" & Packet.Source'Image & " Packet:" &
+                     Packet.Packet_Number'Image & " Transport: " &
+                     Transport'Image);
 
-               This.Packet_Collection (Response).Packet_Array
-                 (This.Packet_Collection (Response).Packet_Index) :=
-                 Packet;
-               This.Packet_Collection (Response).Packet_Index     :=
-                 Packet_Index_Type'Succ
-                   (This.Packet_Collection (Response).Packet_Index);
+            end case;
 
-            when Unknown =>
-               Ada.Text_IO.Put_Line
-                 ("Unknown" & Packet.Source'Image & " Packet:" &
-                  Packet.Packet_Number'Image & " Transport: " &
-                  Transport'Image);
-
-         end case;
+         end if;
 
       else
 
