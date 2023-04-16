@@ -78,8 +78,8 @@ package body Library.Network is
       Source_Address_Port : Drivers.Ethernet.Address_Port_Type;
 
    begin
-      -- loop for a maximum of 100 times for radio
-      for Index in 1 .. 100 loop
+      -- loop for a maximum of 32 times for radio
+      for Index in 1 .. 32 loop
 
          -- check if there is a new packet
          if This.Radio.all.Is_New_Data then
@@ -99,8 +99,8 @@ package body Library.Network is
 
       end loop;
 
-      -- loop for a maximum of 100 times for cloud
-      for Index in 1 .. 100 loop
+      -- loop for a maximum of 32 times for cloud
+      for Index in 1 .. 32 loop
 
          -- check if there is a new packet
          if This.Cloud.Is_New_Data then
@@ -171,12 +171,28 @@ package body Library.Network is
                  (This, Transport, Packet, Source_Address_Port);
 
             when Telemetry =>
-               This.Packet_Collection (Telemetry).Packet_Index     :=
-                 Packet_Index_Type'Succ
-                   (This.Packet_Collection (Telemetry).Packet_Index);
+
+               -- double check we are not writing on top of an existing packet
+               if This.Packet_Collection (Telemetry).Packet_Array
+                   (This.Packet_Collection (Telemetry).Packet_Index) /=
+                 Packet_Default
+               then
+                  Ada.Text_IO.Put_Line
+                    ("Error: Overwriting Packet - Source:" &
+                     This.Packet_Collection (Telemetry).Packet_Array
+                       (This.Packet_Collection (Telemetry).Packet_Index)
+                       .Source'
+                       Image &
+                     " Index:" &
+                     This.Packet_Collection (Telemetry).Packet_Index'Image);
+               end if;
+
                This.Packet_Collection (Telemetry).Packet_Array
                  (This.Packet_Collection (Telemetry).Packet_Index) :=
                  Packet;
+               This.Packet_Collection (Telemetry).Packet_Index     :=
+                 Packet_Index_Type'Succ
+                   (This.Packet_Collection (Telemetry).Packet_Index);
 
             when Command =>
                Ada.Text_IO.Put_Line
@@ -184,12 +200,12 @@ package body Library.Network is
                   Packet.Packet_Number'Image & " Transport: " &
                   Transport'Image);
 
-               This.Packet_Collection (Command).Packet_Index     :=
-                 Packet_Index_Type'Succ
-                   (This.Packet_Collection (Command).Packet_Index);
                This.Packet_Collection (Command).Packet_Array
                  (This.Packet_Collection (Command).Packet_Index) :=
                  Packet;
+               This.Packet_Collection (Command).Packet_Index     :=
+                 Packet_Index_Type'Succ
+                   (This.Packet_Collection (Command).Packet_Index);
 
             when Response =>
                Ada.Text_IO.Put_Line
@@ -197,12 +213,12 @@ package body Library.Network is
                   Packet.Packet_Number'Image & " Transport: " &
                   Transport'Image);
 
-               This.Packet_Collection (Response).Packet_Index     :=
-                 Packet_Index_Type'Succ
-                   (This.Packet_Collection (Response).Packet_Index);
                This.Packet_Collection (Response).Packet_Array
                  (This.Packet_Collection (Response).Packet_Index) :=
                  Packet;
+               This.Packet_Collection (Response).Packet_Index     :=
+                 Packet_Index_Type'Succ
+                   (This.Packet_Collection (Response).Packet_Index);
 
             when Unknown =>
                Ada.Text_IO.Put_Line
@@ -387,12 +403,24 @@ package body Library.Network is
       -- get the packet from the packet array
       New_Packet :=
         This.Packet_Collection (Variant).Packet_Array
-          (This.Packet_Collection (Variant).Packet_Index);
+          (This.Packet_Collection (Variant).Packet_End_Index);
 
       -- clear the packet from the packet array
       This.Packet_Collection (Variant).Packet_Array
-        (This.Packet_Collection (Variant).Packet_Index) :=
+        (This.Packet_Collection (Variant).Packet_End_Index) :=
         Packet_Default;
+
+      -- only move the packet start index if the packet start index is not equal
+      if This.Packet_Collection (Variant).Packet_Index /=
+        This.Packet_Collection (Variant).Packet_End_Index
+      then
+
+         -- move the packet start index
+         This.Packet_Collection (Variant).Packet_End_Index :=
+           Packet_Index_Type'Succ
+             (This.Packet_Collection (Variant).Packet_End_Index);
+
+      end if;
 
       return New_Packet;
 
@@ -401,7 +429,7 @@ package body Library.Network is
    procedure Send_Packet (This : in out Network_Type; Packet : Packet_Type) is
 
       Destination_Address : Drivers.Ethernet.Address_V4_Type := (127, 0, 0, 1);
-      Last     : Ada.Streams.Stream_Element_Offset;
+      Last                : Ada.Streams.Stream_Element_Offset;
 
       -- this needs to change set to address of procedure parameter
       New_Data : Ada.Streams.Stream_Element_Array (1 .. 1_024);
@@ -482,7 +510,7 @@ package body Library.Network is
 
       Current_Time : Ada.Real_Time.Time;
       Timeout_Time : Ada.Real_Time.Time;
-      
+
    begin
 
       -- loop through the transport array

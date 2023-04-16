@@ -16,13 +16,13 @@ package Library.Telemetry is
    end record;
 
    type Location_Type is record
-      Position : Types.Physics.Position_Type;
+      Position        : Types.Physics.Position_Type;
       Velocity_Vector : Types.Physics.Velocity_Vector_Type;
       Rotation_Vector : Types.Physics.Rotation_Vector_Type;
    end record;
    for Location_Type use record
-      Position at 0 * 16 range 0 .. 95;
-      Velocity_Vector at 0 * 16 range 96 .. 191;
+      Position        at 0 * 16 range   0 ..  95;
+      Velocity_Vector at 0 * 16 range  96 .. 191;
       Rotation_Vector at 0 * 16 range 192 .. 287;
    end record;
    for Location_Type'Size use 288;
@@ -36,7 +36,7 @@ package Library.Telemetry is
       end case;
    end record;
    for Telemetry_Packet_Type use record
-      Variant  at 0 * 16 range 0 ..  1;
+      Variant  at 0 * 16 range 0 ..   1;
       Debug    at 1 * 16 range 0 ..  15;
       Location at 1 * 16 range 0 .. 287;
    end record;

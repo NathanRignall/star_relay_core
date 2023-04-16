@@ -11,6 +11,8 @@ package body Library.Telemetry is
      (This   : Telemetry_Type; Telemetry_Packet : Telemetry_Packet_Type;
       Source : Library.Network.Device_Identifier_Type);
 
+   procedure Cleanup_Aircraft_Array (This : Telemetry_Type);
+
    procedure Send_Location (This : Telemetry_Type);
 
    procedure Initialize (This : Telemetry_Type) is
@@ -29,6 +31,7 @@ package body Library.Telemetry is
 
          when Types.Schedule.S_20ms =>
             This.Process_Telemetry;
+            This.Cleanup_Aircraft_Array;
 
          when Types.Schedule.S_200ms =>
             This.Send_Location;
@@ -52,8 +55,8 @@ package body Library.Telemetry is
 
    begin
 
-      -- loop through all the packets (up to 100)
-      for Index in 1 .. 100 loop
+      -- loop through all the packets (up to 32)
+      for Index in 1 .. 32 loop
 
          -- get the next packet to process
          Packet := This.Network.Get_Packet (Library.Network.Telemetry);
@@ -190,6 +193,45 @@ package body Library.Telemetry is
       end loop;
 
    end Process_Location_Telemetry;
+
+   procedure Cleanup_Aircraft_Array (This : Telemetry_Type) is
+
+      use type Ada.Real_Time.Time;
+
+      Current_Time : Ada.Real_Time.Time;
+      Timeout_Time : Ada.Real_Time.Time;
+
+   begin
+
+      -- loop through the aircraft array
+      for Aircraft_Index in Types.State.Aircraft_Index_Type loop
+
+         -- check if the aircraft is active
+         if Application.State.Aircraft_State (Aircraft_Index).Active = True
+         then
+
+            -- get the current time
+            Current_Time := Ada.Real_Time.Clock;
+
+            -- calculate the timeout time
+            Timeout_Time :=
+              Application.State.Aircraft_State (Aircraft_Index).Time +
+              Ada.Real_Time.Seconds (10);
+
+            -- check if the aircraft has timed out
+            if Current_Time > Timeout_Time then
+
+               -- set the aircraft to inactive
+               Application.State.Aircraft_State (Aircraft_Index).Active :=
+                 False;
+
+            end if;
+
+         end if;
+
+      end loop;
+
+   end Cleanup_Aircraft_Array;
 
    procedure Send_Location (This : Telemetry_Type) is
 

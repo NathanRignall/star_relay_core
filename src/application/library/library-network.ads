@@ -136,13 +136,15 @@ package Library.Network is
      Packet_Array_Type'(others => Packet_Default);
 
    type Packet_Collection_Type is record
-      Packet_Index : Packet_Index_Type;
-      Packet_Array : Packet_Array_Type;
+      Packet_Index     : Packet_Index_Type;
+      Packet_Array     : Packet_Array_Type;
+      Packet_End_Index : Packet_Index_Type;
    end record;
    Packet_Collection_Default : constant Packet_Collection_Type :=
      Packet_Collection_Type'
-       (Packet_Index => Packet_Index_Default,
-        Packet_Array => Packet_Array_Default);
+       (Packet_Index     => Packet_Index_Default,
+        Packet_Array     => Packet_Array_Default,
+        Packet_End_Index => Packet_Index_Default);
 
    type Packet_Collection_Array_Type is
      array (Packet_Variant_Type) of Packet_Collection_Type;
